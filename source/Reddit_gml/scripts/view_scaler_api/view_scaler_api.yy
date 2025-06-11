@@ -1,0 +1,13 @@
+{
+  "$GMScript":"v1",
+  "%Name":"view_scaler_api",
+  "isCompatibility":false,
+  "isDnD":false,
+  "name":"view_scaler_api",
+  "parent":{
+    "name":"ViewScaler",
+    "path":"folders/ViewScaler.yy",
+  },
+  "resourceType":"GMScript",
+  "resourceVersion":"2.0",
+}

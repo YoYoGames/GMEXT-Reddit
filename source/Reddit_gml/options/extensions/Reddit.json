@@ -1,0 +1,43 @@
+{
+  "$GMExtensionConfigSet": "GMExtensionConfigSet",
+  "configurables": {
+    "441c2104-5009-48cf-8a08-d747c5ea81ce": null,
+    "6091dc13-ac0c-417c-abb5-6f393ca63445": {
+      "Default": {
+        "value": "../reddit_output"
+      }
+    },
+    "1f564823-c893-45ef-9659-3686fe46a381": {
+      "Default": {
+        "value": "True"
+      }
+    },
+    "1da89b10-d9ae-4eef-b23a-0323c009b9b5": {
+      "Default": {
+        "value": "True"
+      }
+    },
+    "00431e01-20bc-45a9-a587-ad561b12f810": null,
+    "3a723152-f91c-4f15-9cba-88dd93a75c5b": {
+      "Default": {
+        "value": "MyTestProject"
+      }
+    },
+    "491d8222-bb04-42aa-ac1b-c069d41a0c8d": {
+      "Default": {
+        "value": "r/YYCommunityTest"
+      }
+    },
+    "86f05a54-a406-4559-a50b-9ef347d78f04": {
+      "Default": {
+        "value": "True"
+      }
+    },
+    "f169d6b1-7782-4000-a166-8a613cac769a": null,
+    "0af54e48-1266-4c00-a530-96665cc9c967": null,
+    "b4f5edda-f6dc-4a86-b12d-799071c132fd": null,
+    "9e35639c-84e1-455d-8b4f-073e0f4de503": null,
+    "9a72c367-7bae-4c88-8623-59ba762e8977": null,
+    "aacbdbf3-b3d2-4965-83c5-0821e759171e": null
+  }
+}
