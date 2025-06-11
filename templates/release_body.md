@@ -35,4 +35,4 @@ Because every transformation happens at *build time*, you keep coding entirely i
 
 ## DOCUMENTATION
 
-Guides on how to setup a Reddit developer account and your own sub-reddit can be found at [Reddit Developers](https://developers.reddit.com/docs/quickstart) official documentation.
+Guides on how to set up a Reddit developer account and your own subreddit can be found in the official [Reddit Developers](https://developers.reddit.com/docs/quickstart) documentation.
