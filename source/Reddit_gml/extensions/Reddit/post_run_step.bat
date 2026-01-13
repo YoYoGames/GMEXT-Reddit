@@ -52,11 +52,21 @@ if errorlevel 1 (
 ::call npm install -g devvit
 ::call %Utils% logInformation "Detected devvit tool init processing..."
 
+:: Resolve the output directory
+call %Utils% pathResolve "%YYprojectDir%" "%OUTPUT_PATH%" OUTPUT_DIR
+
+if not exist "%OUTPUT_DIR%/%PROJECT_NAME%" (
+    mkdir "%OUTPUT_DIR%/%PROJECT_NAME%"
+)
+
+pushd "%OUTPUT_DIR%/%PROJECT_NAME%"
+call npm install --save-dev devvit@latest
+
 :: --------------------------------------------------------------------
 :: Verify the app exists in Devvit; fail if NOT found
 :: --------------------------------------------------------------------
 set "DEVVIT_LIST=%TEMP%\devvit_apps_%RANDOM%%RANDOM%.txt"
-start "Devvit Apps" /wait cmd /c "devvit list apps > "%DEVVIT_LIST%" 2>&1"
+start "Devvit Apps" /wait cmd /c "npx devvit list apps > "%DEVVIT_LIST%" 2>&1"
 
 if not exist "%DEVVIT_LIST%" (
     call %Utils% logError "Could not retrieve Devvit app list."
@@ -77,9 +87,7 @@ if not defined DEVVIT_HIT (
 )
 
 call %Utils% logInformation "Devvit app '%PROJECT_NAME%' confirmed."
-
-:: Resolve the output directory
-call %Utils% pathResolve "%YYprojectDir%" "%OUTPUT_PATH%" OUTPUT_DIR
+popd
 
 :: --------------------------------------------------------------------
 :: Make sure we have a devvit project
@@ -87,8 +95,7 @@ call %Utils% pathResolve "%YYprojectDir%" "%OUTPUT_PATH%" OUTPUT_DIR
 :: This section is responsible for creating a project if there is none
 :: It will try to do either a git repo or use a local zipped template (on failure)
 set "TEMPLATE_ZIP=%~dp0GameMakerRedditTemplate.zip"
-if not exist "%OUTPUT_DIR%/%PROJECT_NAME%" (
-
+if not exist "%OUTPUT_DIR%/%PROJECT_NAME%/setup-gamemaker-devvit.bat" (
     :: Make sure the ouput folder exists
     if not exist "%OUTPUT_DIR%" mkdir "%OUTPUT_DIR%" 2>nul
     pushd "%OUTPUT_DIR%"
@@ -111,7 +118,6 @@ if not exist "%OUTPUT_DIR%/%PROJECT_NAME%" (
         exit /b 1
     )
     call %Utils% logInformation "Local template project extracted."
-
     popd
 )
 
@@ -123,6 +129,7 @@ if not exist "setup-gamemaker-devvit.bat" (
     popd
     exit /b 1
 )
+
 call cmd /c ""setup-gamemaker-devvit.bat" "%YYoutputFolder%" "%PROJECT_NAME%""
 
 :: -------------------------------------------------------------
