@@ -58,12 +58,12 @@ call %Utils% pathResolve "%YYprojectDir%" "%OUTPUT_PATH%" OUTPUT_DIR
 :: --------------------------------------------------------------------
 :: Verify the app exists in Devvit; fail if NOT found
 :: --------------------------------------------------------------------
-if not exist "%OUTPUT_DIR%/%PROJECT_NAME%" (
-    mkdir "%OUTPUT_DIR%/%PROJECT_NAME%"
+if not exist "%OUTPUT_DIR%" (
+    mkdir "%OUTPUT_DIR%"
 )
 
 :: Install devvit locally for this project only
-pushd "%OUTPUT_DIR%/%PROJECT_NAME%"
+pushd "%OUTPUT_DIR%"
 call npm install --save-dev devvit@latest
 
 set "DEVVIT_LIST=%TEMP%\devvit_apps_%RANDOM%%RANDOM%.txt"
@@ -96,26 +96,23 @@ popd
 :: This section is responsible for creating a project if there is none
 :: It will try to do either a git repo or use a local zipped template (on failure)
 set "TEMPLATE_ZIP=%~dp0GameMakerRedditTemplate.zip"
-if not exist "%OUTPUT_DIR%/%PROJECT_NAME%/setup-gamemaker-devvit.bat" (
+if not exist "%OUTPUT_DIR%/setup-gamemaker-devvit.bat" (
     :: Make sure the ouput folder exists
     if not exist "%OUTPUT_DIR%" mkdir "%OUTPUT_DIR%" 2>nul
-    pushd "%OUTPUT_DIR%"
 
     :: If there are no access to the repo use the local zipped template
     if not exist "%TEMPLATE_ZIP%" (
         call %Utils% logError "Fallback zip not found: %TEMPLATE_ZIP%"
-        popd
         exit /b 1
     )
     call %Utils% logInformation "Local template project found, expanding..."
 
     :: Extract as-is
     powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-    "Expand-Archive -Force '%TEMPLATE_ZIP%' '%PROJECT_NAME%'"
+    "Expand-Archive -Force '%TEMPLATE_ZIP%' '%OUTPUT_DIR%'"
 
     if ERRORLEVEL 1 (
         call %Utils% logError "Failed to expand fallback zip."
-        popd
         exit /b 1
     )
     call %Utils% logInformation "Local template project extracted."
@@ -126,8 +123,8 @@ if not exist "%OUTPUT_DIR%/%PROJECT_NAME%/setup-gamemaker-devvit.bat" (
 :: The tempalte is responsible for what needs to be done.
 pushd "%OUTPUT_DIR%/%PROJECT_NAME%"
 if not exist "setup-gamemaker-devvit.bat" (
-    call %Utils% logError "Current folder '%CD%' not valid devvit GameMaker project."
     popd
+    call %Utils% logError "Current folder '%CD%' not valid devvit GameMaker project."
     exit /b 1
 )
 call cmd /c ""setup-gamemaker-devvit.bat" "%YYoutputFolder%" "%PROJECT_NAME%""

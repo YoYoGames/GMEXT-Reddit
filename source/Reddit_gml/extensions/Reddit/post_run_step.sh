@@ -44,14 +44,14 @@ pathResolve "${YYprojectDir:-/}" "${OUTPUT_PATH:-.}" OUTPUT_DIR
 # -----------------------------------------------------------------------------
 # Ensure output/project directory exists (matches BAT behavior)
 # -----------------------------------------------------------------------------
-mkdir -p "$OUTPUT_DIR/$PROJECT_NAME"
+mkdir -p "$OUTPUT_DIR"
 
 # -----------------------------------------------------------------------------
 # Verify the app exists in Devvit; fail if NOT found
 # - Install devvit locally (per-project)
 # - Use npx devvit list apps and search for PROJECT_NAME as a token
 # -----------------------------------------------------------------------------
-pushd "$OUTPUT_DIR/$PROJECT_NAME" >/dev/null
+pushd "$OUTPUT_DIR" >/dev/null
 
 # Install devvit locally for this project only
 if ! command -v npm >/dev/null 2>&1; then
@@ -103,41 +103,32 @@ popd >/dev/null
 # - On bash, prefer .sh, but keep parity by accepting either as "project exists"
 # -----------------------------------------------------------------------------
 TEMPLATE_ZIP="$SCRIPT_DIR/GameMakerRedditTemplate.zip"
-
-PROJECT_DIR="$OUTPUT_DIR/$PROJECT_NAME"
-if [[ ! -f "$PROJECT_DIR/setup-gamemaker-devvit.bat" && ! -f "$PROJECT_DIR/setup-gamemaker-devvit.sh" ]]; then
+if [[ ! -f "$OUTPUT_DIR/setup-gamemaker-devvit.bat" && ! -f "$OUTPUT_DIR/setup-gamemaker-devvit.sh" ]]; then
   mkdir -p "$OUTPUT_DIR"
-  pushd "$OUTPUT_DIR" >/dev/null
 
   if [[ ! -f "$TEMPLATE_ZIP" ]]; then
-    popd >/dev/null
     logError "Fallback zip not found: $TEMPLATE_ZIP"
   fi
 
   logInformation "Local template project found, expanding..."
 
-  # Extract as-is into ./$PROJECT_NAME (similar spirit to Expand-Archive ... '%PROJECT_NAME%')
-  mkdir -p "$PROJECT_NAME"
+  # Extract as-is into ./$OUTPUT_DIR (similar spirit to Expand-Archive ... '%OUTPUT_DIR%')
   if command -v unzip >/dev/null 2>&1; then
-    unzip -q -o "$TEMPLATE_ZIP" -d "$PROJECT_NAME" || {
-      popd >/dev/null
+    unzip -q -o "$TEMPLATE_ZIP" -d "$OUTPUT_DIR" || {
       logError "Failed to expand fallback zip."
     }
   else
     # macOS/Linux typically have one of these; use whatever is available.
     if command -v bsdtar >/dev/null 2>&1; then
-      bsdtar -xf "$TEMPLATE_ZIP" -C "$PROJECT_NAME" || {
-        popd >/dev/null
+      bsdtar -xf "$TEMPLATE_ZIP" -C "$OUTPUT_DIR" || {
         logError "Failed to expand fallback zip."
       }
     else
-      popd >/dev/null
       logError "Neither 'unzip' nor 'bsdtar' is available to extract $TEMPLATE_ZIP."
     fi
   fi
 
   logInformation "Local template project extracted."
-  popd >/dev/null
 fi
 
 # -----------------------------------------------------------------------------
@@ -146,7 +137,7 @@ fi
 # - Bash prefers setup-gamemaker-devvit.sh; if only .bat exists and cmd is present,
 #   it will try to run it (useful on Git-Bash/MSYS).
 # -----------------------------------------------------------------------------
-pushd "$PROJECT_DIR" >/dev/null
+pushd "$OUTPUT_DIR/$PROJECT_NAME" >/dev/null
 
 if [[ -x "./setup-gamemaker-devvit.sh" ]]; then
   ./setup-gamemaker-devvit.sh "${YYoutputFolder:-}" "$PROJECT_NAME"
