@@ -4,7 +4,8 @@ set -euo pipefail
 # -----------------------------------------------------------------------------
 # Paths / utils
 # -----------------------------------------------------------------------------
-Utils="$(cd -- "$(dirname -- "$0")" && pwd)/scriptUtils.sh"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+Utils="$SCRIPT_DIR/scriptUtils.sh"
 # shellcheck source=/dev/null
 . "$Utils"
 
@@ -36,33 +37,51 @@ if ! [[ "$PROJECT_NAME" =~ ^[a-z0-9-]{3,16}$ ]]; then
 fi
 
 # -----------------------------------------------------------------------------
-# Verify dependencies: npm + devvit
+# Resolve the output directory (relative to YYprojectDir)
 # -----------------------------------------------------------------------------
-logInformation "Detecting installed 'npm' version..."
-if ! npm --version >/dev/null 2>&1; then
-  logError "Failed to detect npm, please install npm on your system."
-fi
+pathResolve "${YYprojectDir:-/}" "${OUTPUT_PATH:-.}" OUTPUT_DIR
 
-# Try to ensure devvit is present/updated (don't hard-fail if global install needs sudo)
-if ! npm install -g devvit; then
-  logWarning "npm install -g devvit failed (permissions?). Will continue assuming 'devvit' is already available on PATH."
-fi
-
-logInformation "Detected devvit tool init processing..."
+# -----------------------------------------------------------------------------
+# Ensure output/project directory exists (matches BAT behavior)
+# -----------------------------------------------------------------------------
+mkdir -p "$OUTPUT_DIR/$PROJECT_NAME"
 
 # -----------------------------------------------------------------------------
 # Verify the app exists in Devvit; fail if NOT found
+# - Install devvit locally (per-project)
+# - Use npx devvit list apps and search for PROJECT_NAME as a token
 # -----------------------------------------------------------------------------
-DEVVIT_LIST="$(mktemp -t devvit_apps.XXXXXX.txt)"
-# Run in a subshell so any shell init output doesn't pollute our capture
-( devvit list apps ) >"$DEVVIT_LIST" 2>&1 || true
+pushd "$OUTPUT_DIR/$PROJECT_NAME" >/dev/null
 
-if [[ ! -s "$DEVVIT_LIST" ]]; then
+# Install devvit locally for this project only
+if ! command -v npm >/dev/null 2>&1; then
+  logError "npm was not found on PATH. Please install Node.js/npm."
+fi
+
+npm install --save-dev devvit@latest >/dev/null 2>&1 || {
+  logError "Failed to install devvit locally (npm install --save-dev devvit@latest)."
+}
+
+DEVVIT_LIST="$(mktemp -t "devvit_apps.XXXXXX.txt")"
+# Capture both stdout/stderr like the BAT (it redirects 2>&1)
+# Do not let a non-zero exit crash the script before we can show a useful error.
+if ! npx devvit list apps >"$DEVVIT_LIST" 2>&1; then
+  : # handled below by checking file/content
+fi
+
+if [[ ! -f "$DEVVIT_LIST" ]]; then
+  popd >/dev/null
   logError "Could not retrieve Devvit app list."
 fi
 
-# We only need to see the project name as a standalone token somewhere on a line.
-# Use awk to match whole fields (handles leading whitespace and avoids grep -w hyphen gotchas).
+# If list is empty, treat as failure (mirrors BAT's "file missing" intent, but stricter)
+if [[ ! -s "$DEVVIT_LIST" ]]; then
+  rm -f "$DEVVIT_LIST"
+  popd >/dev/null
+  logError "Could not retrieve Devvit app list."
+fi
+
+# Match as a standalone field anywhere on a line (handles leading whitespace, etc.)
 if ! awk -v needle="$PROJECT_NAME" '
   {
     for (i=1; i<=NF; i++) if ($i==needle) { found=1; exit }
@@ -70,62 +89,82 @@ if ! awk -v needle="$PROJECT_NAME" '
   END { exit found ? 0 : 1 }
 ' "$DEVVIT_LIST"; then
   rm -f "$DEVVIT_LIST"
+  popd >/dev/null
   logError "Devvit app '$PROJECT_NAME' was not found. Create the app first: https://developers.reddit.com/new."
 fi
 
 rm -f "$DEVVIT_LIST"
 logInformation "Devvit app '$PROJECT_NAME' confirmed."
+popd >/dev/null
 
 # -----------------------------------------------------------------------------
-# Resolve the output directory (relative to YYprojectDir)
+# Make sure we have a devvit project (zip fallback only, per BAT)
+# - BAT checks for setup-gamemaker-devvit.bat to decide if template exists
+# - On bash, prefer .sh, but keep parity by accepting either as "project exists"
 # -----------------------------------------------------------------------------
-pathResolve "${YYprojectDir:-/}" "${OUTPUT_PATH:-.}" OUTPUT_DIR
+TEMPLATE_ZIP="$SCRIPT_DIR/GameMakerRedditTemplate.zip"
 
-# -----------------------------------------------------------------------------
-# Ensure we have a devvit project (clone or local zip fallback)
-# -----------------------------------------------------------------------------
-if [[ ! -d "$OUTPUT_DIR/$PROJECT_NAME" ]]; then
-  # Ensure output dir exists
+PROJECT_DIR="$OUTPUT_DIR/$PROJECT_NAME"
+if [[ ! -f "$PROJECT_DIR/setup-gamemaker-devvit.bat" && ! -f "$PROJECT_DIR/setup-gamemaker-devvit.sh" ]]; then
   mkdir -p "$OUTPUT_DIR"
   pushd "$OUTPUT_DIR" >/dev/null
 
-  logInformation "Attempting to clone template repo..."
-  if ! git clone "https://github.com/YoYoGames/GameMakerRedditTemplate.git" "$PROJECT_NAME"; then
-    logWarning "Git clone failed (private/internal?). Falling back to local zip."
+  if [[ ! -f "$TEMPLATE_ZIP" ]]; then
+    popd >/dev/null
+    logError "Fallback zip not found: $TEMPLATE_ZIP"
+  fi
 
-    TEMPLATE_ZIP="$(cd -- "$(dirname -- "$0")" && pwd)/GameMakerRedditTemplate.zip"
-    if [[ ! -f "$TEMPLATE_ZIP" ]]; then
-      popd >/dev/null
-      logError "Fallback zip not found: $TEMPLATE_ZIP"
-    fi
+  logInformation "Local template project found, expanding..."
 
-    # Extract as-is (no flatten) into $PROJECT_NAME
-    mkdir -p "$PROJECT_NAME"
-    if ! unzip -q "$TEMPLATE_ZIP" -d "$PROJECT_NAME"; then
+  # Extract as-is into ./$PROJECT_NAME (similar spirit to Expand-Archive ... '%PROJECT_NAME%')
+  mkdir -p "$PROJECT_NAME"
+  if command -v unzip >/dev/null 2>&1; then
+    unzip -q -o "$TEMPLATE_ZIP" -d "$PROJECT_NAME" || {
       popd >/dev/null
       logError "Failed to expand fallback zip."
+    }
+  else
+    # macOS/Linux typically have one of these; use whatever is available.
+    if command -v bsdtar >/dev/null 2>&1; then
+      bsdtar -xf "$TEMPLATE_ZIP" -C "$PROJECT_NAME" || {
+        popd >/dev/null
+        logError "Failed to expand fallback zip."
+      }
+    else
+      popd >/dev/null
+      logError "Neither 'unzip' nor 'bsdtar' is available to extract $TEMPLATE_ZIP."
     fi
   fi
 
+  logInformation "Local template project extracted."
   popd >/dev/null
 fi
 
 # -----------------------------------------------------------------------------
 # Run the template's setup script
+# - BAT runs setup-gamemaker-devvit.bat with: (YYoutputFolder, PROJECT_NAME)
+# - Bash prefers setup-gamemaker-devvit.sh; if only .bat exists and cmd is present,
+#   it will try to run it (useful on Git-Bash/MSYS).
 # -----------------------------------------------------------------------------
-pushd "$OUTPUT_DIR/$PROJECT_NAME" >/dev/null
+pushd "$PROJECT_DIR" >/dev/null
 
-# Prefer a POSIX setup script if present; otherwise error
 if [[ -x "./setup-gamemaker-devvit.sh" ]]; then
   ./setup-gamemaker-devvit.sh "${YYoutputFolder:-}" "$PROJECT_NAME"
 elif [[ -f "./setup-gamemaker-devvit.sh" ]]; then
-  # Not executable, try via sh
   sh ./setup-gamemaker-devvit.sh "${YYoutputFolder:-}" "$PROJECT_NAME"
 else
-  logError "Current folder '$PWD' not a valid Devvit GameMaker project (missing setup-gamemaker-devvit.sh)."
+  popd >/dev/null
+  logError "Current folder '$PWD' not valid devvit GameMaker project (missing setup-gamemaker-devvit.sh/.bat)."
 fi
 
+npm install --no-fund --no-audit >/dev/null 2>&1 || {
+  popd >/dev/null
+  logError "Failed to install dependencies."
+}
+
 popd >/dev/null
+
+logInformation "Project build updated successfully."
 
 # Match BAT’s non-zero exit for tool runner behavior
 exit 1

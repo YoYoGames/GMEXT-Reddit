@@ -55,16 +55,17 @@ if errorlevel 1 (
 :: Resolve the output directory
 call %Utils% pathResolve "%YYprojectDir%" "%OUTPUT_PATH%" OUTPUT_DIR
 
+:: --------------------------------------------------------------------
+:: Verify the app exists in Devvit; fail if NOT found
+:: --------------------------------------------------------------------
 if not exist "%OUTPUT_DIR%/%PROJECT_NAME%" (
     mkdir "%OUTPUT_DIR%/%PROJECT_NAME%"
 )
 
+:: Install devvit locally for this project only
 pushd "%OUTPUT_DIR%/%PROJECT_NAME%"
 call npm install --save-dev devvit@latest
 
-:: --------------------------------------------------------------------
-:: Verify the app exists in Devvit; fail if NOT found
-:: --------------------------------------------------------------------
 set "DEVVIT_LIST=%TEMP%\devvit_apps_%RANDOM%%RANDOM%.txt"
 start "Devvit Apps" /wait cmd /c "npx devvit list apps > "%DEVVIT_LIST%" 2>&1"
 
@@ -129,19 +130,16 @@ if not exist "setup-gamemaker-devvit.bat" (
     popd
     exit /b 1
 )
-
 call cmd /c ""setup-gamemaker-devvit.bat" "%YYoutputFolder%" "%PROJECT_NAME%""
 
-:: -------------------------------------------------------------
-:: npm run dev in a new visible window, blocking this script
-:: -------------------------------------------------------------
-start "npm dev - %PROJECT_NAME%" /wait cmd /c "npm install --no-fund --no-audit && npm run dev"
-if errorlevel 1 (
-  call %Utils% logError "npm run dev failed."
-  exit /b 1
+call npm install --no-fund --no-audit
+if ERRORLEVEL 1 (
+    popd
+    call %Utils% logError "Failed to install dependencies."
+    exit /b 1
 )
-call %Utils% logInformation "npm run dev exited cleanly."
-
 popd
+
+call %Utils% logInformation "Project build updated successfully."
 
 exit 1
