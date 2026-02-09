@@ -7,7 +7,7 @@ This extension will work on WASM (GX.games) export.
 
 ## Requirements
 
-The user is required to install Reddit build, development and deployment tool Devvit that can be done through npm with the command - `npm install -g devvit` - which required NPM to be installed in your system.
+The user is required to install node.js to be able to use this extension (everything else is handled by the extension itself)
 
 ## Workflow
 
